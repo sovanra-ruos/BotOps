@@ -6,6 +6,7 @@ import os
 
 from botops.core.commands.allowport import allow_port
 from botops.core.commands.deploy import deploy_container
+from botops.core.commands.logcontainer import get_container_logs
 from botops.docker_utils import list_running_docker_containers
 from botops.monitor import check_system_health
 
@@ -134,6 +135,18 @@ async def allowport(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = allow_port(port)
     await update.message.reply_text(result, parse_mode="Markdown")
 
+async def log_container(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if not args:
+        await update.message.reply_text("⚠️ Usage: /logcontainer <container_name> [tail_lines]")
+        return
+
+    container_name = args[0]
+    tail = int(args[1]) if len(args) > 1 and args[1].isdigit() else 50
+
+    result = get_container_logs(container_name, tail)
+    await update.message.reply_text(result, parse_mode="Markdown")
+
 # Setup the Telegram bot
 def setup_bot(token: str):
     app = ApplicationBuilder().token(token).build()
@@ -142,7 +155,7 @@ def setup_bot(token: str):
     app.add_handler(CommandHandler("status", status_handler))
     app.add_handler(CommandHandler("ping", ping_handler))
     app.add_handler(CommandHandler("restart", restart_handler))
-    app.add_handler(CommandHandler("log", log_handler))
+    app.add_handler(CommandHandler("log", log_container))
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("services", docker_command))
     app.add_handler(CommandHandler("deploy", deploy))
