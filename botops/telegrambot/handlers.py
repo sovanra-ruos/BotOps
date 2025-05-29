@@ -4,6 +4,8 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 
+from botops.core.commands.allowport import allow_port
+from botops.core.commands.deploy import deploy_container
 from botops.docker_utils import list_running_docker_containers
 from botops.monitor import check_system_health
 
@@ -103,6 +105,35 @@ async def docker_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = "No running Docker containers found."
     await update.message.reply_text(message, parse_mode="Markdown")
 
+async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(
+            "⚠️ Usage: /deploy <image_name> <container_name> [<host_port:container_port>]"
+        )
+        return
+
+    image_name = args[0]
+    container_name = args[1]
+    ports = args[2] if len(args) >= 3 else "80:80"
+
+    result = deploy_container(image_name, container_name, ports)
+    await update.message.reply_text(result)
+
+async def allowport(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if not args:
+        await update.message.reply_text("⚠️ Usage: /allowport <port_number>")
+        return
+
+    port = args[0]
+    if not port.isdigit():
+        await update.message.reply_text("❌ Invalid port number. Must be numeric.")
+        return
+
+    result = allow_port(port)
+    await update.message.reply_text(result, parse_mode="Markdown")
+
 # Setup the Telegram bot
 def setup_bot(token: str):
     app = ApplicationBuilder().token(token).build()
@@ -114,5 +145,7 @@ def setup_bot(token: str):
     app.add_handler(CommandHandler("log", log_handler))
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("services", docker_command))
+    app.add_handler(CommandHandler("deploy", deploy))
+    app.add_handler(CommandHandler("allow_port", allowport))
     print("🚀 Bot is running...")
     return app
